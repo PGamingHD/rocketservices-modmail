@@ -40,10 +40,12 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.GuildVoiceStates,
+
     ],
 
     partials: [
         Partials.ActivityType,
+        Partials.Channel,
     ],
 });
 
@@ -62,7 +64,6 @@ module.exports = client;
 client.commands = new Collection();
 client.slashCommands = new Collection();
 client.cachedGuildLanguages = new Collection();
-client.startupCooldown = new Collection();
 client.categories = readdirSync("./commands/");
 client.config = require("./botconfig/config.json");
 

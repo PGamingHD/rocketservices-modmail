@@ -24,20 +24,20 @@ module.exports.hintgame = hintgame;
 //FUNCTIONS
 
 async function languageControl(guild, translateLine) {
-    const [guildLanguageRows, guildLanguageFields] = await client.connection.query(`SELECT language_current FROM language_data WHERE language_serverid = ${guild.id}`);
+    /*const [guildLanguageRows, guildLanguageFields] = await client.connection.query(`SELECT language_current FROM language_data WHERE language_serverid = ${guild.id}`);
     let guildLanguage = 'en-US';
     if (guildLanguageRows.length !== 0) {
        guildLanguage = guildLanguageRows[0].language_current
-    }
+    }*/
 
-    const dataFile = require(`../language/${guildLanguage}.json`)
+    const dataFile = require(`../language/en-US.json`)
     let translatedLine = dataFile[`${translateLine}`];
 
     if (translatedLine === undefined) {
         translatedLine = 'Invalid translation name'
     }
 
-    return translatedLine
+    return translatedLine;
 }
 
     //console.log(stringTemplateParser('my name is {{name}} and age is {{age}}', {name: 'Tom', age:100}));

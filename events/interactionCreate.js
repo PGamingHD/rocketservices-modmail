@@ -16,169 +16,12 @@ const ee = require("../botconfig/embed.json");
 const emoji = require("../botconfig/emojis.json");
 const config = require("../botconfig/config.json");
 const embed = require("../botconfig/embed.json");
-const startupCooldown = client.startupCooldown;
 const {
     languageControl,
     stringTemplateParser
 } = require("../handler/functions");
 
 client.on("interactionCreate", async (interaction) => {
-
-    if (startupCooldown.has("startupcooldown") && !config.DEVELOPER_IDS.includes(interaction.user.id)) {
-        return interaction.reply({
-            embeds: [
-                new EmbedBuilder()
-                .setColor(embed.errorColor)
-                .setDescription(await languageControl(interaction.guild, 'STARTUP_WARNING'))
-            ]
-        })
-    }
-
-    const [globalRows, globalFields] = await client.connection.query('SELECT * FROM global_data WHERE global_access = 1');
-    const inMaintenance = globalRows[0].maintenance_mode;
-    const latestTOS = globalRows[0].latest_tos;
-
-    if (inMaintenance && !config.DEVELOPER_IDS.includes(interaction.user.id)) {
-
-        return interaction.reply({
-            embeds: [
-                new EmbedBuilder()
-                .setColor(embed.maintenanceColor)
-                .setDescription(await languageControl(interaction.guild, 'MAINTENANCE_ON'))
-            ]
-        })
-    }
-
-    const [blacklistGuildRows, blacklistGuildFields] = await client.connection.query(`SELECT * FROM blacklist_data WHERE blacklist_type = "GUILD" AND blacklist_id = "${interaction.guild.id}"`);
-    if (blacklistGuildRows.length !== 0) {
-        return interaction.reply({
-            embeds: [
-                new EmbedBuilder()
-                .setColor(embed.errorColor)
-                .setTitle(await languageControl(interaction.guild, 'DETECTED_BLACKLIST'))
-                .setDescription(await languageControl(interaction.guild, 'BLACKLISTED_GUILD'))
-            ]
-        })
-    }
-
-    const [blacklistUserRows, blacklistUserFields] = await client.connection.query(`SELECT * FROM blacklist_data WHERE blacklist_type = "USER" AND blacklist_id = "${interaction.user.id}"`);
-    if (blacklistUserRows.length !== 0) {
-        return interaction.reply({
-            embeds: [
-                new EmbedBuilder()
-                .setColor(embed.errorColor)
-                .setTitle(await languageControl(interaction.guild, 'DETECTED_BLACKLIST'))
-                .setDescription(await languageControl(interaction.guild, 'BLACKLISTED_USER'))
-            ]
-        })
-    }
-
-    const [tosAgreementRows, tosAgreementFields] = await client.connection.query(`SELECT * FROM tos_agreements WHERE agreement_userid = ${interaction.user.id}`);
-
-    let existingAgreement = 0;
-
-    if (tosAgreementRows.length !== 0) {
-        existingAgreement = tosAgreementRows[0].agreement_date;
-    }
-
-    if (latestTOS > existingAgreement && !interaction.isButton()) {
-        const agreementRow = new ActionRowBuilder()
-        agreementRow.addComponents([
-            new ButtonBuilder()
-            .setEmoji('✅')
-            .setCustomId('agree')
-            .setStyle(ButtonStyle.Primary)
-        ])
-        agreementRow.addComponents([
-            new ButtonBuilder()
-            .setEmoji('❎')
-            .setCustomId('disagree')
-            .setStyle(ButtonStyle.Primary)
-        ])
-
-        const main = await interaction.reply({
-            embeds: [
-                new EmbedBuilder()
-                .setColor(ee.color)
-                .setTitle(await languageControl(interaction.guild, 'TOS_UPDATED_TITLE'))
-                .setDescription(stringTemplateParser(await languageControl(interaction.guild, 'TOS_UPDATED_DESC'), {
-                    interactionUser: interaction.user
-                }))
-            ],
-            components: [agreementRow]
-        });
-
-        let filter = m => m.user.id === interaction.user.id;
-        const collector = main.createMessageComponentCollector({
-            filter,
-            time: 1000 * 60
-        });
-
-        collector.on('collect', async (interactionCollector) => {
-            if (interactionCollector.customId === "agree") {
-                await interactionCollector.deferUpdate();
-
-                for (let i = 0; i < agreementRow.components.length; i++) {
-                    agreementRow.components[i].setDisabled(true);
-                }
-
-                await interaction.editReply({
-                    embeds: [
-                        new EmbedBuilder()
-                        .setColor(851712)
-                        .setTitle(await languageControl(interaction.guild, 'TOS_AGREEMENT_TITLE'))
-                        .setDescription(await languageControl(interaction.guild, 'TOS_AGREEMENT_DESC'))
-                    ],
-                    components: [agreementRow]
-                })
-
-                if (tosAgreementRows.length === 0) {
-                    await client.connection.query(`INSERT INTO tos_agreements (agreement_userid, agreement_date) VALUES (${interaction.user.id}, ${Date.now()})`);
-                } else {
-                    await client.connection.query(`UPDATE tos_agreements SET agreement_date = "${Date.now()}" WHERE agreement_userid = ${interaction.user.id}`);
-                }
-                return;
-            }
-
-            if (interactionCollector.customId === "disagree") {
-                await interactionCollector.deferUpdate();
-
-                for (let i = 0; i < agreementRow.components.length; i++) {
-                    agreementRow.components[i].setDisabled(true);
-                }
-
-                await interaction.editReply({
-                    embeds: [
-                        new EmbedBuilder()
-                        .setColor(ee.errorColor)
-                        .setTitle(await languageControl(interaction.guild, 'TOS_DECLINE_TITLE'))
-                        .setDescription(await languageControl(interaction.guild, 'TOS_DECLINE_DESC'))
-                    ],
-                    components: [agreementRow]
-                });
-                return;
-            }
-        });
-
-        collector.on('end', async (collected) => {
-            if (collected.size === 0) {
-                for (let i = 0; i < agreementRow.components.length; i++) {
-                    agreementRow.components[i].setDisabled(true);
-                }
-
-                await interaction.editReply({
-                    embeds: [
-                        new EmbedBuilder()
-                        .setColor(ee.errorColor)
-                        .setTitle(await languageControl(interaction.guild, 'TOS_TIMEOUT_TITLE'))
-                        .setDescription(await languageControl(interaction.guild, 'TOS_TIMEOUT_DESC'))
-                    ],
-                    components: [agreementRow]
-                });
-            }
-        });
-        return;
-    }
 
     // Slash Command Handling
     if (interaction.isChatInputCommand()) {
@@ -224,7 +67,7 @@ client.on("interactionCreate", async (interaction) => {
         const cmd = client.slashCommands.get(interaction.commandName);
         if (!cmd) {
             let embed = new EmbedBuilder()
-                .setColor(ee.color)
+                .setColor(ee.errorColor)
                 .setDescription(await languageControl(interaction.guild, 'COMMAND_ERROR'))
             return interaction.reply({
                 embeds: [embed],
@@ -236,7 +79,7 @@ client.on("interactionCreate", async (interaction) => {
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                    .setColor(ee.wrongcolor)
+                    .setColor(ee.errorColor)
                     .setTitle(await languageControl(interaction.guild, 'MISSING_PERMS_TITLE'))
                     .setDescription(await languageControl(interaction.guild, 'MISSING_DEV_PERMS'))
                 ],
@@ -247,7 +90,7 @@ client.on("interactionCreate", async (interaction) => {
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                    .setColor(ee.wrongcolor)
+                    .setColor(ee.errorColor)
                     .setTitle(await languageControl(interaction.guild, 'MISSING_PERMS_TITLE'))
                     .setDescription(await languageControl(interaction.guild, 'MISSING_OWNER_PERMS'))
                 ],
@@ -258,7 +101,7 @@ client.on("interactionCreate", async (interaction) => {
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                    .setColor(ee.wrongcolor)
+                    .setColor(ee.errorColor)
                     .setTitle(await languageControl(interaction.guild, 'MISSING_PERMS_TITLE'))
                     .setDescription(await languageControl(interaction.guild, 'MISSING_ADMIN_PERMS'))
                 ],
@@ -307,7 +150,411 @@ client.on("interactionCreate", async (interaction) => {
             guild
         } = interaction;
 
-        //TRY TO USE COLLECTORS INSTEAD OF THIS! (WILL SURVIVE FOREVER)
+        if (interaction.customId === "claim") {
+            const [claimRows, claimFields] = await client.connection.query(`SELECT * FROM modmail_data WHERE modmail_channelid = ${interaction.channel.id}`)
+
+            if (claimRows.length !== 0) {
+                const claimData = claimRows[0];
+
+                if (parseInt(claimData.modmail_claimed) !== 0) {
+                    return interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                            .setColor(embed.errorColor)
+                            .setDescription(':x: This case has already been claimed by another staff member!')
+                            .setTimestamp()
+                        ],
+                        ephemeral: true
+                    })
+                } else {
+                    const claimData = claimRows[0];
+                    await interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                            .setColor(embed.color)
+                            .setDescription(`:white_check_mark: The case has successfully been claimed by ${interaction.user}`)
+                            .setFooter({
+                                text: `${interaction.user.username}#${interaction.user.discriminator} | ${interaction.user.id}`
+                            })
+                            .setTimestamp()
+                        ]
+                    })
+                    const mainMSG = await interaction.channel.messages.fetch(claimData.modmail_msgid)
+                    const managementButtons = new ActionRowBuilder()
+                    managementButtons.addComponents([
+                        new ButtonBuilder()
+                        .setEmoji({
+                            name: "❌"
+                        })
+                        .setLabel('Close Case')
+                        .setCustomId('close')
+                        .setStyle(ButtonStyle.Danger)
+                    ])
+                    managementButtons.addComponents([
+                        new ButtonBuilder()
+                        .setEmoji({
+                            name: "✅"
+                        })
+                        .setLabel('Claim Case')
+                        .setCustomId('claim')
+                        .setStyle(ButtonStyle.Success)
+                        .setDisabled(true)
+                    ])
+                    managementButtons.addComponents([
+                        new ButtonBuilder()
+                        .setEmoji({
+                            name: "⚠️"
+                        })
+                        .setLabel('Unclaim Case')
+                        .setCustomId('unclaim')
+                        .setStyle(ButtonStyle.Primary)
+                    ])
+
+                    let justTesting = mainMSG.embeds[0];
+                    justTesting.data.footer.text = `Claimed by: ${interaction.user.username}#${interaction.user.discriminator}`;
+                    await mainMSG.edit({
+                        embeds: [justTesting],
+                        components: [managementButtons]
+                    })
+
+                    await client.connection.query(`UPDATE modmail_data SET modmail_claimed = ${interaction.user.id} WHERE modmail_channelid = ${interaction.channel.id}`)
+                    return;
+                }
+            } else {
+                return;
+            }
+        }
+
+        if (interaction.customId === "close") {
+            const [claimRows, claimFields] = await client.connection.query(`SELECT * FROM modmail_data WHERE modmail_channelid = ${interaction.channel.id}`)
+
+            if (claimRows.length !== 0) {
+                const claimData = claimRows[0];
+
+                if(parseInt(claimData.modmail_claimed) === 0) {
+                    return interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                            .setColor(embed.errorColor)
+                            .setDescription(':x: Please claim ownership before closing a case!')
+                            .setTimestamp()
+                        ],
+                        ephemeral: true
+                    })
+                }
+                if(parseInt(claimData.modmail_claimed) !== parseInt(interaction.user.id)) {
+                    return interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                            .setColor(embed.errorColor)
+                            .setDescription(':x: Only the case owner may close the case!')
+                            .setTimestamp()
+                        ],
+                        ephemeral: true
+                    })
+                }
+
+                if (!claimData.modmail_status) {
+                    return interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                            .setColor(embed.errorColor)
+                            .setDescription(':x: This case has already been closed!')
+                            .setTimestamp()
+                        ],
+                        ephemeral: true
+                    })
+                }
+
+                await client.connection.query(`UPDATE modmail_data SET modmail_status = 0 WHERE modmail_channelid = ${interaction.channel.id}`);
+                let filter = m => m.author.id === interaction.user.id;
+                await interaction.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                        .setColor(embed.errorColor)
+                        .setDescription(`:warning: Please choose a reason for closing this ticket!`)
+                    ]
+                }).then(() => {
+                    interaction.channel.awaitMessages({
+                        filter,
+                        max: 1, //MAX COLLECTIONS
+                        time: 1000 * 60, // SECONDS
+                    }).then(async (collected) => {
+                        const reason = collected.first();
+
+                        const mainMSG = await interaction.channel.messages.fetch(claimData.modmail_msgid);
+                        const user = await client.users.fetch(`${claimData.modmail_owner}`);
+
+                        const managementButtons = new ActionRowBuilder()
+                        managementButtons.addComponents([
+                            new ButtonBuilder()
+                            .setEmoji({
+                                name: "❌"
+                            })
+                            .setLabel('Close Case')
+                            .setCustomId('close')
+                            .setStyle(ButtonStyle.Danger)
+                            .setDisabled(true)
+                        ])
+                        managementButtons.addComponents([
+                            new ButtonBuilder()
+                            .setEmoji({
+                                name: "✅"
+                            })
+                            .setLabel('Claim Case')
+                            .setCustomId('claim')
+                            .setStyle(ButtonStyle.Success)
+                            .setDisabled(true)
+                        ])
+
+                        let justTesting = mainMSG.embeds[0];
+                        justTesting.data.title = `Modmail Case Closed`;
+                        justTesting.data.color = embed.errorColor;
+
+                        await mainMSG.edit({
+                            embeds: [justTesting],
+                            components: [managementButtons],
+                        });
+
+                        await interaction.editReply({
+                            embeds: [
+                                new EmbedBuilder()
+                                .setColor(embed.errorColor)
+                                .setTitle(`Ticket Closed`)
+                                .setDescription(`*${reason}*`)
+                                .setAuthor({
+                                    name: `${interaction.user.username}#${interaction.user.discriminator}`,
+                                    iconURL: interaction.user.displayAvatarURL()
+                                })
+                                .setFooter({
+                                    text: `${interaction.guild.name}`,
+                                    iconURL: interaction.guild.iconURL()
+                                })
+                                .setTimestamp()
+                            ]
+                        })
+
+                        await user.send({
+                            embeds: [
+                                new EmbedBuilder()
+                                .setColor(embed.errorColor)
+                                .setDescription(`*${reason}*`)
+                                .setTitle(`Ticket Closed`)
+                                .setAuthor({
+                                    name: `${interaction.user.username}#${interaction.user.discriminator}`,
+                                    iconURL: interaction.user.displayAvatarURL()
+                                })
+                                .setFooter({
+                                    text: `${interaction.guild.name}`,
+                                    iconURL: interaction.guild.iconURL()
+                                })
+                                .setTimestamp()
+                            ]
+                        })
+
+                        setTimeout(async () => {
+                            const deletemsg = await interaction.channel.send({
+                                content: '[COUNTDOWN] Channel being deleted in 60 seconds!'
+                            })
+
+                            let counter = 0;
+                            const interval = setInterval(async () => {
+                                counter++;
+                                if (counter % 5 === 0) {
+                                    await deletemsg.edit({
+                                        content: `[COUNTDOWN] Channel being deleted in ${60 - counter} seconds!`
+                                    })
+                                }
+                                if (counter === 60) {
+                                    clearInterval(interval);
+                                    await deletemsg.delete();
+                                    await interaction.channel.delete();
+                                }
+                            }, 1000 * 1);
+                        }, 1000 * 5);
+                        return;
+                    }).catch(async (collected) => {
+                        const reason = "No reason specified";
+                        const mainMSG = await interaction.channel.messages.fetch(claimData.modmail_msgid);
+                        const user = await client.users.fetch(`${claimData.modmail_owner}`);
+
+                        const managementButtons = new ActionRowBuilder()
+                        managementButtons.addComponents([
+                            new ButtonBuilder()
+                            .setEmoji({
+                                name: "❌"
+                            })
+                            .setLabel('Close Case')
+                            .setCustomId('close')
+                            .setStyle(ButtonStyle.Danger)
+                            .setDisabled(true)
+                        ])
+                        managementButtons.addComponents([
+                            new ButtonBuilder()
+                            .setEmoji({
+                                name: "✅"
+                            })
+                            .setLabel('Claim Case')
+                            .setCustomId('claim')
+                            .setStyle(ButtonStyle.Success)
+                            .setDisabled(true)
+                        ])
+
+                        let justTesting = mainMSG.embeds[0];
+                        justTesting.data.title = `Modmail Case Closed`;
+                        justTesting.data.color = embed.errorColor;
+
+                        await mainMSG.edit({
+                            embeds: [justTesting],
+                            components: [managementButtons],
+                        });
+
+                        await interaction.editReply({
+                            embeds: [
+                                new EmbedBuilder()
+                                .setColor(embed.errorColor)
+                                .setTitle(`Ticket Closed`)
+                                .setDescription(`*${reason}*`)
+                                .setAuthor({
+                                    name: `${interaction.user.username}#${interaction.user.discriminator}`,
+                                    iconURL: interaction.user.displayAvatarURL()
+                                })
+                                .setFooter({
+                                    text: `${interaction.guild.name}`,
+                                    iconURL: interaction.guild.iconURL()
+                                })
+                                .setTimestamp()
+                            ]
+                        })
+
+                        await user.send({
+                            embeds: [
+                                new EmbedBuilder()
+                                .setColor(embed.errorColor)
+                                .setDescription(`*${reason}*`)
+                                .setTitle(`Ticket Closed`)
+                                .setAuthor({
+                                    name: `${interaction.user.username}#${interaction.user.discriminator}`,
+                                    iconURL: interaction.user.displayAvatarURL()
+                                })
+                                .setFooter({
+                                    text: `${interaction.guild.name}`,
+                                    iconURL: interaction.guild.iconURL()
+                                })
+                                .setTimestamp()
+                            ]
+                        })
+
+                        setTimeout(async () => {
+                            await interaction.channel.send({
+                                content: 'Channel being deleted in 60 seconds!'
+                            })
+                        }, 1000 * 5);
+        
+                        setTimeout(async () => {
+                            await interaction.channel.delete();
+                        }, 1000 * 60);
+                        return;
+                    })
+                })
+            } else {
+                return;
+            }
+        }
+
+        if (interaction.customId === "unclaim") {
+            const [claimRows, claimFields] = await client.connection.query(`SELECT * FROM modmail_data WHERE modmail_channelid = ${interaction.channel.id}`)
+
+            if (claimRows.length !== 0) {
+                const claimData = claimRows[0];
+
+                if(parseInt(claimData.modmail_claimed) === 0) {
+                    return interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                            .setColor(embed.errorColor)
+                            .setDescription(':x: Please claim ownership before unclaiming a case!')
+                            .setTimestamp()
+                        ],
+                        ephemeral: true
+                    })
+                }
+                if(parseInt(claimData.modmail_claimed) !== parseInt(interaction.user.id)) {
+                    return interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                            .setColor(embed.errorColor)
+                            .setDescription(':x: Only the case owner may unclaim the case!')
+                            .setTimestamp()
+                        ],
+                        ephemeral: true
+                    })
+                }
+                if (!claimData.modmail_status) {
+                    return interaction.reply({
+                        embeds: [
+                            new EmbedBuilder()
+                            .setColor(embed.errorColor)
+                            .setDescription(':x: This case has already been closed!')
+                            .setTimestamp()
+                        ],
+                        ephemeral: true
+                    })
+                }
+
+                await interaction.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                        .setColor(embed.color)
+                        .setDescription(`:white_check_mark: The case has successfully been unclaimed by ${interaction.user}\n\n*That means the case can be claimed again.*`)
+                        .setFooter({
+                            text: `${interaction.user.username}#${interaction.user.discriminator} | ${interaction.user.id}`
+                        })
+                        .setTimestamp()
+                    ]
+                })
+                const mainMSG = await interaction.channel.messages.fetch(claimData.modmail_msgid)
+                const managementButtons = new ActionRowBuilder()
+                managementButtons.addComponents([
+                    new ButtonBuilder()
+                    .setEmoji({
+                        name: "❌"
+                    })
+                    .setLabel('Close Case')
+                    .setCustomId('close')
+                    .setStyle(ButtonStyle.Danger)
+                ])
+                managementButtons.addComponents([
+                    new ButtonBuilder()
+                    .setEmoji({
+                        name: "✅"
+                    })
+                    .setLabel('Claim Case')
+                    .setCustomId('claim')
+                    .setStyle(ButtonStyle.Success)
+                ])
+                managementButtons.addComponents([
+                    new ButtonBuilder()
+                    .setEmoji({
+                        name: "⚠️"
+                    })
+                    .setLabel('Unclaim Case')
+                    .setCustomId('unclaim')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(true)
+                ])
+
+                let justTesting = mainMSG.embeds[0];
+                justTesting.data.footer.text = `Claimed by: Noone`;
+                await mainMSG.edit({
+                    embeds: [justTesting],
+                    components: [managementButtons]
+                })
+
+                await client.connection.query(`UPDATE modmail_data SET modmail_claimed = 0 WHERE modmail_channelid = ${interaction.channel.id}`)
+                return;
+            }
+        }
     }
 });
 

@@ -4,5 +4,6 @@
    "BOT_VERSION": "v1.0.0",
    "ADMIN_LOGS": "https://discord.com/api/webhooks/980167326898982973/7wIFw0ugZgaaJzDZ4zTlS0AAKkfzFlcCDqmaJ6BB2qkvCX3mBhHE2scnTREoYRdHzOSH",
    "ENABLE_RATEWARNING": true,
-   "ENABLE_DEBUG": false
+   "ENABLE_DEBUG": false,
+   "MODMAIL_GUILD": "973248852603850823"
 }
