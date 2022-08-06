@@ -44,6 +44,9 @@ client.on("ready", async (client) => {
             })
         });
 
+        const dbKeepup = Cron('0 0 */1 * * *', () => {
+            client.connection.query('SELECT 1');
+        });
     } catch (e) {
         console.log(String(e.stack))
     }
