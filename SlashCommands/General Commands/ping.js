@@ -39,7 +39,7 @@
                     })
                     .addFields([{
                         name: await languageControl(interaction.guild, 'PING_BOT_LATENCY'),
-                        value: `\`\`\`re\n[ ${Math.floor((Date.now() - interaction.createdTimestamp) - 2 * Math.floor(client.ws.ping))}ms ]\`\`\``,
+                        value: `\`\`\`re\n[ ${Math.floor(2* 2 * Math.floor(client.ws.ping) - (Date.now() - interaction.createdTimestamp))}ms ]\`\`\``,
                         inline: true
                     }, {
                         name: await languageControl(interaction.guild, 'PING_API_LATENCY'),
@@ -51,7 +51,9 @@
                     }])
                     .setTimestamp()
                     .setFooter({
-                        text: stringTemplateParser(await languageControl(interaction.guild, 'PING_REQUEST_BY'), {interactionUsername: interaction.user.username}),
+                        text: stringTemplateParser(await languageControl(interaction.guild, 'PING_REQUEST_BY'), {
+                            interactionUsername: interaction.user.username
+                        }),
                         iconURL: interaction.user.displayAvatarURL()
                     })
                 ]
