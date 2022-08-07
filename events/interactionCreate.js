@@ -75,7 +75,7 @@ client.on("interactionCreate", async (interaction) => {
             });
         }
 
-        if (cmd.DeveloperCommand && !interaction.user.id.includes(config.DEVELOPER_IDS)) {
+        if (cmd.developerCommand && !interaction.user.id.includes(config.DEVELOPER_IDS)) {
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()

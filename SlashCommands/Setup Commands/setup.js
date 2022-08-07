@@ -28,9 +28,17 @@ module.exports = {
      */
     run: async (client, interaction, con, args) => {
         const foundPriorChannel = await interaction.guild.channels.cache.find(channel => channel.name.toLowerCase() === 'modmail service' || channel.name.toLowerCase() === 'modmail' && channel.type === ChannelType.GuildCategory)
+        const [foundRows, foundFields] = await con.query(`SELECT modmail_categoryid FROM modmail_setup`);
 
-        if (foundPriorChannel) {
+        if (foundPriorChannel && foundRows.length === 1) {
             await con.query(`UPDATE modmail_setup SET modmail_categoryid = ${foundPriorChannel.id}`);
+
+            return interaction.reply({
+                content: ':white_check_mark: Successfully changed the Modmail category!',
+                ephemeral: true
+            })
+        } else if (foundPriorChannel && foundRows.length === 0) {
+            await con.query(`INSERT INTO modmail_setup (modmail_categoryid) VALUES (${foundPriorChannel.id})`);
 
             return interaction.reply({
                 content: ':white_check_mark: Successfully changed the Modmail category!',

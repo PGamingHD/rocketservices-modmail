@@ -129,6 +129,19 @@ client.on("messageCreate", async (message) => {
 
                 await client.connection.query(`INSERT INTO modmail_data (modmail_uuid,modmail_status,modmail_owner,modmail_channelid,modmail_claimed,modmail_msgid) VALUES ('${uuid}','1','${message.author.id}','${createNew.id}','0','${mainMSG.id}')`);
             } else {
+                await message.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                        .setColor(embed.color)
+                        .setTitle('Message Sent')
+                        .setDescription(`*${message.content}*`)
+                        .setFooter({
+                            text: `${message.author.username}#${message.author.discriminator} | ${message.author.id}`
+                        })
+                        .setTimestamp()
+                    ]
+                })
+
                 channel.send({
                     embeds: [
                         new EmbedBuilder()
